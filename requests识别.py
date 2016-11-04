@@ -2,44 +2,71 @@ import requests
 from lxml import etree
 from PIL import Image, ImageEnhance, ImageFilter
 import io
+import re
+import os
 from pytesser import *
 
-url = 'http://www.newegg.cn/Product/S5K-5C3-05D_320.htm'
-html = etree.HTML(requests.get(url).text)
 
-name = html.xpath('//*[@id="tab1"]/div[1]/div[2]/div[2]/ul[1]/li[2]/div[2]/text()')
-price = html.xpath('//*[@id="priceValue"]/span/strong/img/@src')
-print(price)
-threshold = 140
-table = []
-for i in range(256):
-    if i < threshold:
-        table.append(0)
-    else:
-        table.append(1)
+url = 'http://www.newegg.cn/Product/A28-800-6TM-26.htm'
+urls = set()
+urls.add(url)
 
-rep = {'O': '0',
-       'I': '1', 'L': '1',
-       'Z': '2',
-       'S': '8'
-       }
 
-nameimage = io.BytesIO(requests.get(price[0]).content)
-im = Image.open(nameimage)
+def res(url):
+    r = requests.get(url).text
+    aas = re.findall('http://www.newegg.cn/Product.+?\=1',r)
+    for aa in aas:
+        if aa in urls:
+            continue
+        else:
+            urls.add(aa)
+            res(aa)
 
-imgry = im.convert('L')
+res(url)
+for i in urls:
+    
+    r = requests.get(i).text
 
-out = imgry.point(table, '1')
+    html = etree.HTML(r)
 
-text = image_to_string(out)
+    name = html.xpath('//*[@id="tab1"]/div[1]/div[2]/div[2]/ul[1]/li[2]/div[2]/text()')
+    price = html.xpath('//*[@id="priceValue"]/span/strong/img/@src')
 
-text = text.strip()
-text = text.upper();
+    threshold = 140
+    table = []
+    for i in range(256):
+        if i < threshold:
+            table.append(0)
+        else:
+            table.append(1)
 
-for r in rep:
-    price = text.replace(r, rep[r])
+    rep = {'O': '0',
+           'I': '1', 'L': '1',
+           'Z': '2',
+           'S': '8'
+           }
+    if price:        
+        rs = requests.get(price[-1]).content
+        with open('o.png','wb') as code:
+            code.write(rs)
+        #nameimage = io.BytesIO(rs)
+        nameimage = 'o.png'
+        im = Image.open(nameimage)
 
-print(name[0] + '  =  ' + price)
+        imgry = im.convert('L')
+
+        out = imgry.point(table, '1')
+
+        text = image_to_string(out)
+
+        text = text.strip()
+        text = text.upper()
+
+        for r in rep:
+            price = text.replace(r, rep[r])
+
+        print(name[0] + '  =  ' + price)
+
 
 
 
